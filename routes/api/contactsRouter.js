@@ -21,7 +21,7 @@ const addContactSchema = Joi.object({
     .email({ tlds: { allow: false } })
     .required(),
   phone: Joi.string()
-    .pattern(/^\+?[1-9]\d{1,14}$/)
+    .pattern(/^\(\d{3}\) \d{3}-\d{4}$/)
     .required(),
 });
 
@@ -35,7 +35,7 @@ const updateContactSchema = Joi.object({
     .email({ tlds: { allow: false } })
     .optional(),
   phone: Joi.string()
-    .pattern(/^\+?[1-9]\d{1,14}$/)
+    .pattern(/^\(\d{3}\) \d{3}-\d{4}$/)
     .optional(),
 });
 
@@ -45,7 +45,7 @@ router.get("/", async (_req, res, next) => {
     if (contacts) {
       res.status(200).json(contacts);
     } else {
-      next();
+      res.status(404).json({ message: "Not found" });
     }
   } catch (error) {
     next(error);
@@ -59,7 +59,7 @@ router.get("/:id", async (req, res, next) => {
     if (contact) {
       res.status(200).json(contact);
     } else {
-      next();
+      res.status(404).json({ message: "Not found" });
     }
   } catch (error) {
     next(error);
@@ -88,7 +88,7 @@ router.delete("/:id", async (req, res, next) => {
     if (updatedContacts) {
       res.status(200).json({ message: "Contact deleted" });
     } else {
-      next();
+      res.status(404).json({ message: "Not found" });
     }
   } catch (error) {
     next(error);
@@ -99,15 +99,15 @@ router.put("/:id", async (req, res, next) => {
   const { id } = req.params;
   const { error } = updateContactSchema.validate(req.body);
   if (error) {
-    res.status(400).json({ message: "missing fields" });
+    const errorMessages = error.details.map((err) => err.message);
+    res.status(400).json({ message: errorMessages });
   }
-
   try {
     const updatedContact = await updateContact(id, req.body);
     if (updatedContact) {
       res.status(200).json(updatedContact);
     } else {
-      next();
+      res.status(404).json({ message: "Not found" });
     }
   } catch (error) {
     next(error);
