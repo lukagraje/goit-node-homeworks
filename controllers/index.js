@@ -21,7 +21,7 @@ const addContactSchema = Joi.object({
   phone: Joi.string()
     .pattern(/^\(\d{3}\) \d{3}-\d{4}$/)
     .required(),
-  favorite: Joi.boolean().required(),
+  favorite: Joi.boolean(),
 });
 
 const updateContactSchema = Joi.object({
