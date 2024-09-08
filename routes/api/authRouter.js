@@ -91,7 +91,7 @@ router.post("/login", async (req, res, next) => {
 router.get("/logout", authMiddleware, async (_req, res, next) => {
   try {
     const userId = res.locals.user._id;
-    const user = await User.findbyId(userId);
+    const user = await User.findById(userId);
 
     user.token = null;
     await user.save();
