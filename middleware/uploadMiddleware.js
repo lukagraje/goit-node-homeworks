@@ -5,14 +5,12 @@ const { v4: uuidV4 } = require("uuid");
 const tempDir = path.join(__dirname, "../tmp");
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      console.log("Uploading to:", tempDir); // Log destination path
-      cb(null, tempDir);
-    },
-    filename: (req, file, cb) => {
-      console.log("Uploading file:", file.originalname); // Log file name
-      cb(null, `${uuidV4()}${file.originalname}`);
-    },
+  destination: (req, file, cb) => {
+    cb(null, tempDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${uuidV4()}${file.originalname}`);
+  },
 });
 
 const extensionWhiteList = [".jpg", ".jpeg", ".png", ".gif"];

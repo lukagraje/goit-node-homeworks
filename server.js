@@ -41,10 +41,17 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ message: err.message });
 });
 
-app.listen(PORT, async () => {
-  await setupFolder(tempDir);
-  await setupFolder(storeImageDir);
-  console.log(`Server is running on port ${PORT}.`);
-});
+const startServer = async () => {
+  try {
+    await connection;
+    console.log("Database connection successful");
+    app.listen(3000, () => {
+      console.log("Server started on http://localhost:3000");
+    });
+  } catch (err) {
+    console.log(err);
+    process.exit(1);
+  }
+};
 
-module.exports = app;
+startServer();

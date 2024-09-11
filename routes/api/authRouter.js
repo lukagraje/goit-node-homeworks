@@ -7,10 +7,9 @@ const gravatar = require("gravatar");
 const { v4: uuidV4 } = require("uuid");
 const fs = require("fs").promises;
 const path = require("path");
-const storeImageDir = path.join(__dirname, "../../public/images");
+const storeAvatarDir = path.join(__dirname, "../../public/images");
 const isImageAndTransform = require("../../helpers/helpers.js");
 const uploadMiddleware = require("../../middleware/uploadMiddleware.js");
-
 const router = express.Router();
 
 const registrationSchema = Joi.object({
@@ -125,54 +124,40 @@ router.get("/current", authMiddleware, async (_req, res, next) => {
   }
 });
 
-router.post(
+router.patch(
   "/avatars",
   authMiddleware,
   uploadMiddleware.single("avatar"),
   async (req, res, next) => {
-    console.log("File received:", req.file); // Log file data
-
     if (!req.file) {
-      console.log("No file uploaded.");
-      return res.status(400).json({ message: "No file uploaded." });
+      return res.status(400).json({ message: "File isn't a photo." });
     }
-
     const { path: temporaryPath } = req.file;
-    console.log("Temporary path:", temporaryPath); // Log temporary path
-
     const extension = path.extname(temporaryPath);
     const fileName = `${uuidV4()}${extension}`;
-    const filePath = path.join(storeImageDir, fileName);
-
-    console.log("File path:", filePath); // Log final file path
-
-    const isValidAndTransform = await isImageAndTransform(temporaryPath);
-    if (!isValidAndTransform) {
-      console.log("File is not a valid photo.");
-      await fs.unlink(temporaryPath);
-      return res
-        .status(400)
-        .json({ message: "File is not a photo but is pretending." });
-    }
+    const filePath = path.join(storeAvatarDir, fileName);
 
     try {
       await fs.rename(temporaryPath, filePath);
-      console.log("File successfully moved.");
-    } catch (e) {
-      console.error("Error moving file:", e);
+    } catch (error) {
       await fs.unlink(temporaryPath);
-      return next(e);
+      return next(error);
+    }
+
+    const isValidAndTransform = await isImageAndTransform(filePath);
+    if (!isValidAndTransform) {
+      await fs.unlink(filePath);
+      return res
+        .status(400)
+        .json({ message: "File isn't a photo but is pretending." });
     }
 
     try {
       const currentUser = res.locals.user;
       currentUser.avatarURL = `/avatars/${fileName}`;
-      await currentUser.save();
-      console.log("Avatar URL saved.");
       return res.status(200).json({ avatarURL: currentUser.avatarURL });
-    } catch (e) {
-      console.error("Error saving user avatar URL:", e);
-      return next(e);
+    } catch (err) {
+      next(err);
     }
   }
 );
