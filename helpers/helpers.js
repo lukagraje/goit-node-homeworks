@@ -3,9 +3,9 @@ const Jimp = require("jimp");
 const MAX_AVATAR_WIDTH = 250;
 const MAX_AVATAR_HEIGHT = 250;
 const isImageAndTransform = async (path) =>
-  new Promise((resolve) => {
+  new Promise((resolve, reject) => {
     Jimp.read(path, async (err, image) => {
-      if (err) resolve(false);
+      if (err) return reject(err);
 
       try {
         await image

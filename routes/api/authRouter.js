@@ -22,7 +22,7 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
-router.patch("/register", async (req, res, next) => {
+router.post("/register", async (req, res, next) => {
   const { error } = registrationSchema.validate(req.body);
 
   if (error) {
@@ -146,20 +146,28 @@ router.patch(
 
     const isValidAndTransform = await isImageAndTransform(filePath);
     if (!isValidAndTransform) {
-      await fs.unlink(filePath);
+      await fs
+        .unlink(filePath)
+        .catch((err) => console.error("Failed to remove invalid file", err));
       return res
         .status(400)
-        .json({ message: "File isn't a photo but is pretending." });
+        .json({ message: "File isn't a photo or couldn't be processed." });
     }
 
     try {
-      const currentUser = res.locals.user;
+      const userId = res.locals.user._id;
+      const currentUser = await User.findById(userId);
       currentUser.avatarURL = `/avatars/${fileName}`;
+
+      await currentUser.save();
+
       return res.status(200).json({ avatarURL: currentUser.avatarURL });
     } catch (err) {
+      await fs.unlink(filePath).catch((err) => {
+        console.error("Failed to remove file after user update error:", err);
+      });
       next(err);
     }
   }
 );
-
 module.exports = router;
