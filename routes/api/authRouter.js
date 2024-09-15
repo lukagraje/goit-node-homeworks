@@ -41,9 +41,10 @@ router.post("/register", async (req, res, next) => {
 
     await newUser.setPassword(password);
     newUser.avatarURL = gravatarURL;
-    await newUser.save();
-
+    //Najpierw wysyłka maila
     await sendVerificationEmail(email, verificationToken, req);
+    //Jeśli wysłanie maila się powiedzie, zapisuję użytkownika w bazie.
+    await newUser.save();
 
     return res.status(201).json({
       message: `${email} - User Created. Verification email sent.`,
@@ -67,6 +68,10 @@ router.post("/login", async (req, res, next) => {
 
     if (!user) {
       return res.status(401).json({ message: "No such user" });
+    }
+    //Sprawdzam, czy user się zweryfikował.
+    if (!user.verify) {
+      return res.status(401).json({ message: "Email not verified" });
     }
 
     const isPasswordCorrect = await user.validatePassword(password);
@@ -174,8 +179,6 @@ router.patch(
 router.get("/verify/:verificationToken", async (req, res) => {
   const { verificationToken } = req.params;
 
-  console.log(`Verification Token: ${verificationToken}`);
-
   try {
     const user = await User.findOne({ verificationToken });
 
@@ -193,7 +196,6 @@ router.get("/verify/:verificationToken", async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 });
-
 
 router.post("/verify", async (req, res) => {
   const { email } = req.body;
