@@ -10,6 +10,7 @@ const path = require("path");
 const storeAvatarDir = path.join(__dirname, "../../public/images");
 const isImageAndTransform = require("../../helpers/helpers.js");
 const uploadMiddleware = require("../../middleware/uploadMiddleware.js");
+const { sendVerificationEmail } = require("../../controllers/email.js");
 const router = express.Router();
 
 const registrationSchema = Joi.object({
@@ -24,29 +25,28 @@ const loginSchema = Joi.object({
 
 router.post("/register", async (req, res, next) => {
   const { error } = registrationSchema.validate(req.body);
-
   if (error) {
     return res.status(400).json({ message: error.details[0].message });
   }
 
   const { email, password } = req.body;
-  const user = await User.findOne({ email }).lean();
-
+  const user = await User.findOne({ email }, { _id: 1 }).lean();
   if (user) {
     return res.status(409).json({ message: "Email in use" });
   }
   try {
-    const newUser = new User({ email, password });
-    const gravatarURL = gravatar.url(email, true);
+    const verificationToken = uuidV4().replace(/-/g, "").substring(0, 20);
+    const newUser = new User({ email, password, verificationToken });
+    const gravatarURL = gravatar.url(email);
+
     await newUser.setPassword(password);
     newUser.avatarURL = gravatarURL;
     await newUser.save();
-    res.status(201).json({
-      user: {
-        email: email,
-        subscription: newUser.subscription,
-        avatarURL: newUser.avatarURL,
-      },
+
+    await sendVerificationEmail(email, verificationToken, req);
+
+    return res.status(201).json({
+      message: `${email} - User Created. Verification email sent.`,
     });
   } catch (e) {
     next(e);
@@ -170,4 +170,58 @@ router.patch(
     }
   }
 );
+
+router.get("/verify/:verificationToken", async (req, res) => {
+  const { verificationToken } = req.params;
+
+  console.log(`Verification Token: ${verificationToken}`);
+
+  try {
+    const user = await User.findOne({ verificationToken });
+
+    if (!user) {
+      return res.status(404).json({ message: "Not Found" });
+    }
+
+    user.verify = true;
+
+    await user.save();
+
+    return res.status(200).json({ message: "Verification successful" });
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+
+router.post("/verify", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Missing required field email" });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.verify) {
+      return res
+        .status(400)
+        .json({ message: "Verification has already been passed" });
+    }
+
+    await sendVerificationEmail(email, user.verificationToken, req);
+
+    return res.status(200).json({ message: "Verification email sent" });
+  } catch (error) {
+    console.error("Error resending verification email:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 module.exports = router;
